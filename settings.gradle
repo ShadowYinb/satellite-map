@@ -1,0 +1,11 @@
+pluginManagement {
+    repositories {
+        mavenCentral()
+        maven {
+            url = providers.gradleProperty('fabric_maven_url').getOrElse('https://maven.fabricmc.net/')
+            content { includeGroupByRegex 'net\\.fabricmc.*' }
+        }
+        gradlePluginPortal()
+    }
+}
+rootProject.name = 'satellite-map'

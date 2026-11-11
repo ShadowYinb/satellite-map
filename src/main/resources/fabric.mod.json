@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "satellite_map",
+  "version": "${version}",
+  "name": "Satellite Map / 卫星地图",
+  "description": "Live Dynmap satellite minimap, fullscreen map and server profile detection.",
+  "authors": ["Satellite Map contributors"],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["com.bilicraft.satellitemap.SatelliteMapClient"],
+    "modmenu": ["com.bilicraft.satellitemap.ui.ModMenuIntegration"]
+  },
+  "depends": {
+    "fabricloader": ">=0.18.4",
+    "minecraft": "1.21.11",
+    "java": ">=21",
+    "fabric-api": ">=0.141.3"
+  },
+  "suggests": { "modmenu": "*" }
+}

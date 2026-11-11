@@ -1,0 +1,9 @@
+{
+  "key.category.satellite_map.maps": "卫星地图",
+  "key.satellite_map.map": "打开 / 关闭大地图",
+  "key.satellite_map.settings": "卫星地图设置",
+  "key.satellite_map.toggle": "显示 / 隐藏小地图",
+  "key.satellite_map.cycle": "手动切换服务器映射",
+  "key.satellite_map.zoom_in": "放大小地图",
+  "key.satellite_map.zoom_out": "缩小小地图"
+}

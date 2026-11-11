@@ -1,0 +1,9 @@
+{
+  "key.category.satellite_map.maps": "Satellite Map",
+  "key.satellite_map.map": "Open / close full map",
+  "key.satellite_map.settings": "Satellite map settings",
+  "key.satellite_map.toggle": "Toggle minimap",
+  "key.satellite_map.cycle": "Cycle server profile (manual)",
+  "key.satellite_map.zoom_in": "Zoom minimap in",
+  "key.satellite_map.zoom_out": "Zoom minimap out"
+}

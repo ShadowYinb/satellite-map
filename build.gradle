@@ -1,0 +1,78 @@
+plugins {
+    id 'net.fabricmc.fabric-loom-remap' version '1.14.10'
+    id 'maven-publish'
+}
+
+version = project.mod_version
+group = project.maven_group
+base { archivesName = project.archives_base_name }
+
+repositories {
+    mavenCentral()
+    maven {
+        url = 'https://maven.terraformersmc.com/releases/'
+        content { includeGroup 'com.terraformersmc' }
+    }
+}
+repositories.configureEach {
+    if (it instanceof MavenArtifactRepository) {
+        if (it.url.toString() == 'https://maven.fabricmc.net/') {
+            it.url = providers.gradleProperty('fabric_maven_url').getOrElse('https://maven.fabricmc.net/')
+            it.content { includeGroupByRegex 'net\\.fabricmc.*' }
+        }
+        if (it.url.toString() == 'https://libraries.minecraft.net/') {
+            it.content { includeGroup 'com.mojang' }
+        }
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings loom.officialMojangMappings()
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    modCompileOnly 'com.terraformersmc:modmenu:17.0.0'
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+processResources {
+    filteringCharset = 'UTF-8'
+    inputs.property 'version', project.version
+    filesMatching('fabric.mod.json') { expand version: project.version }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 21
+    options.encoding = 'UTF-8'
+}
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+    withSourcesJar()
+}
+tasks.wrapper {
+    gradleVersion = '9.3.0'
+    distributionUrl = 'https://downloads.gradle.org/distributions/gradle-9.3.0-bin.zip'
+    distributionSha256Sum = '0d585f69da091fc5b2beced877feab55a3064d43b8a1d46aeb07996b0915e0e0'
+    validateDistributionUrl = false
+}
+test { useJUnitPlatform { excludeTags 'live' } }
+tasks.register('liveTest', Test) {
+    description = 'Read the real Bilicraft Dynmap config, player feed and 9 satellite tiles.'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform { includeTags 'live' }
+    outputs.upToDateWhen { false }
+}
+if (providers.gradleProperty('client_smoke').isPresent()) {
+    fabricApi.configureTests {
+        createSourceSet = true
+        modId = 'satellite_map_gametest'
+        enableGameTests = false
+        enableClientGameTests = true
+    }
+}
+jar { from('LICENSE') { rename { "${it}_${project.base.archivesName.get()}" } } }
