@@ -53,8 +53,13 @@ public final class OverlayRenderer {
                 var quads=OverlayGeometry.fillQuads(points,x,y,x+width,y+height);
                 if(quads.size()<=fillBudget){OverlayMesh.draw(g,quads,shape.style().fill());fillBudget-=quads.size();}
             }
-            for(int i=1;i<points.size();i++)line(points.get(i-1),points.get(i),shape.style().stroke(),shape.style().weight());
-            if(shape.closed())line(points.getLast(),points.getFirst(),shape.style().stroke(),shape.style().weight());
+            if(shape.closed()) {
+                double pixel=1.0/Minecraft.getInstance().getWindow().getGuiScale();
+                List<OverlayGeometry.Quad> outline=new ArrayList<>();
+                for(var quad:RegionOutline.build(points,shape.style().weight()*pixel,pixel))
+                    outline.addAll(OverlayGeometry.fillQuads(quad.vertices(),x,y,x+width,y+height));
+                OverlayMesh.draw(g,outline,shape.style().stroke());
+            }else for(int i=1;i<points.size();i++)line(points.get(i-1),points.get(i),shape.style().stroke(),shape.style().weight());
             if(detailed && settings.labels && set.labels()) {
                 var anchor=filled?new OverlayGeometry.Point((minX+maxX)/2,(minY+maxY)/2):
                         OverlayGeometry.visibleEdge(points,shape.closed(),x+2,y+2,x+width-2,y+height-2);
