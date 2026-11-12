@@ -10,7 +10,7 @@ import net.minecraft.network.chat.Component;
 import java.util.*;
 
 public final class OverlayRenderer {
-    private record LabelBox(int x,int y,int width,int height) {}
+    private record LabelBox(double x,double y,int width,int height) {}
     private final GuiGraphics g;
     private final SatelliteMapClient mod;
     private final OverlaySettings settings;
@@ -50,9 +50,8 @@ public final class OverlayRenderer {
             if(maxX<x-tolerance || minX>x+width+tolerance || maxY<y-tolerance || minY>y+height+tolerance)continue;shapes++;
             boolean filled=shape.closed() && (shape.style().fill()>>>24)>0;
             if(filled && fillBudget>0) {
-                for(var span:OverlayGeometry.spans(points,x,y,x+width,y+height)) {
-                    if(fillBudget--<=0)break;g.fill(span.x0(),span.y(),span.x1(),span.y()+1,shape.style().fill());
-                }
+                var quads=OverlayGeometry.fillQuads(points,x,y,x+width,y+height);
+                if(quads.size()<=fillBudget){OverlayMesh.draw(g,quads,shape.style().fill());fillBudget-=quads.size();}
             }
             for(int i=1;i<points.size();i++)line(points.get(i-1),points.get(i),shape.style().stroke(),shape.style().weight());
             if(shape.closed())line(points.getLast(),points.getFirst(),shape.style().stroke(),shape.style().weight());
@@ -134,16 +133,17 @@ public final class OverlayRenderer {
         if(value.isBlank() || labels.size()>=64 || !inside(px,py,0))return;
         float scale=settings.textSize/9f;
         String text=MapRenderer.clip(value,(int)(Math.min(120,width-8)/scale));int w=(int)Math.ceil(Minecraft.getInstance().font.width(text)*scale),h=settings.textSize+1;
-        int lx=Math.clamp((int)Math.round(px),x+2,Math.max(x+2,x+width-w-2)),ly=Math.clamp((int)Math.round(py),y+2,Math.max(y+2,y+height-h-1));
+        double lx=Math.clamp(px,x+2,Math.max(x+2,x+width-w-2)),ly=Math.clamp(py,y+2,Math.max(y+2,y+height-h-1));
         LabelBox box=new LabelBox(lx,ly,w,h);
-        for(var old:labels)if(box.x<old.x+old.width+2 && box.x+box.width+2>old.x && box.y<old.y+old.height+1 && box.y+box.height+1>old.y)return;
-        labels.add(box);g.fill(lx-1,ly-1,lx+w+1,ly+h,0x80101822);MapRenderer.textScaled(g,text,lx,ly,color,settings.textSize);
+        for(var old:labels)if(box.x<old.x+old.width+2-.001 && box.x+box.width+2>old.x+.001 && box.y<old.y+old.height+1-.001 && box.y+box.height+1>old.y+.001)return;
+        labels.add(box);g.pose().pushMatrix();g.pose().translate((float)lx,(float)ly);
+        g.fill(-1,-1,w+1,h,0x80101822);MapRenderer.textScaled(g,text,0,0,color,settings.textSize);g.pose().popMatrix();
     }
     private void line(OverlayGeometry.Point a,OverlayGeometry.Point b,int color,int weight) {
         if((color>>>24)==0)return;
-        double[] clipped=OverlayGeometry.clipLine(a,b,x,y,x+width-1,y+height-1);if(clipped==null)return;
-        double dx=clipped[2]-clipped[0],dy=clipped[3]-clipped[1];int count=Math.max(1,(int)Math.ceil(Math.max(Math.abs(dx),Math.abs(dy)))),half=weight/2;
-        for(int i=0;i<=count;i++) {int px=(int)Math.round(clipped[0]+dx*i/count),py=(int)Math.round(clipped[1]+dy*i/count);g.fill(px-half,py-half,px-half+weight,py-half+weight,color);}
+        double[] clipped=OverlayGeometry.clipLine(a,b,x-weight,y-weight,x+width+weight,y+height+weight);if(clipped==null)return;
+        var quad=OverlayGeometry.stroke(new OverlayGeometry.Point(clipped[0],clipped[1]),new OverlayGeometry.Point(clipped[2],clipped[3]),weight);
+        if(quad!=null)OverlayMesh.draw(g,List.of(quad),color);
     }
     private OverlayRenderer(){throw new AssertionError();}
 }

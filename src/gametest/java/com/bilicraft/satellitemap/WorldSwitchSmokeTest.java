@@ -87,6 +87,7 @@ final class WorldSwitchSmokeTest {
                 return true;},1200);
             context.takeScreenshot("satellite-players-and-regions");
             IconMotionSmokeTest.run(context);
+            RegionMotionSmokeTest.run(context);
             RadarHeightSmokeTest.run(context,gameServer);
             gameServer.runCommand("difficulty normal");
             gameServer.runCommand("execute in minecraft:the_end run summon zombie 0 100 15 {NoAI:1b,NoGravity:1b,Silent:1b,PersistenceRequired:1b}");

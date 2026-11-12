@@ -8,7 +8,7 @@
 ## 安装
 
 1. 使用 Minecraft **1.21.11**，安装 **Fabric Loader 0.18.4**。
-2. 将 `satellite-map-1.5.2.jar` 和适用于 **1.21.11** 的 **Fabric API 0.141.3 或更新兼容版本**放入该游戏实例的 `mods` 文件夹。升级时移除旧版 Satellite Map JAR，保留原配置即可。
+2. 将 `satellite-map-1.5.3.jar` 和适用于 **1.21.11** 的 **Fabric API 0.141.3 或更新兼容版本**放入该游戏实例的 `mods` 文件夹。升级时移除旧版 Satellite Map JAR，保留原配置即可。
 3. 启动游戏，连接服务器。服务器端无需安装本 MOD。
 4. 可选安装 **Mod Menu 17.x**，可从模组列表进入设置；没有 Mod Menu 时可直接按 `O`。
 
@@ -48,6 +48,7 @@
 
 1.5.1 的小地图、跟随模式的大地图和附近实体使用按帧插值的位置。网页原始瓦片、持久合成图和实时地形共用连续坐标，不再分别取整后绘制；自身头像固定在小地图中央，朝向线也随帧更新。
 1.5.2 进一步让标记点、玩家和生物头像连同边框整体在小数坐标上移动，避免图标仍按整 GUI 像素跳动。自身朝向线采用连续旋转的细矩形绘制。
+1.5.3 将公会、Residence、战区等区域的填色和边线也改为保留小数坐标的连续几何绘制，替代逐像素扫描和取整。文字及其背景框通过同一变换一起移动；轮廓标签保持固定的边线选择顺序，避免可见边长度接近时来回换边。这些调整同时作用于小地图和大地图。
 水面现在单独按群系水色和水深分组校准，不再受陆地方块的色相 / 增益限制；浅水基础色还结合客户端可见的水底材质。只用像水面的网页样本建立配色，网页上的草地或缺失数据不会直接用于水面校准。
 
 ## 在线玩家、标记与区域图层
@@ -188,7 +189,7 @@ macOS / Linux：
 sh ./gradlew build
 ```
 
-生成的可安装 JAR 位于 `build/libs/satellite-map-1.5.2.jar`。`-sources.jar` 是源码包，不能作为 MOD 安装。
+生成的可安装 JAR 位于 `build/libs/satellite-map-1.5.3.jar`。`-sources.jar` 是源码包，不能作为 MOD 安装。
 
 ```powershell
 .\gradlew.bat test       # 投影、维度 / 多世界、缓存更新 / 断网 / 损坏、拖动布局等离线测试
@@ -225,14 +226,14 @@ $env:JAVA_TOOL_OPTIONS='-Djdk.net.unixdomain.tmpdir=C:\Temp -Djava.io.tmpdir=C:\
 
 ## GitHub 自动构建与发布
 
-推送任何 tag 都会运行 [Tag build and release](.github/workflows/release.yml)：使用 Java 21 和工程固定的 Gradle Wrapper，执行 `clean build`（包含离线测试），构建成功后上传 Actions 产物，并自动创建对应的 GitHub Release。版本号从 tag 取得，例如 `v1.5.3` 会构建版本 `1.5.3`，不必为了构建覆盖本地的 `gradle.properties`。建议使用 `v主版本.次版本.修订号` 格式。
+推送任何 tag 都会运行 [Tag build and release](.github/workflows/release.yml)：使用 Java 21 和工程固定的 Gradle Wrapper，执行 `clean build`（包含离线测试），构建成功后上传 Actions 产物，并自动创建对应的 GitHub Release。版本号从 tag 取得，例如 `v1.5.4` 会构建版本 `1.5.4`，不必为了构建覆盖本地的 `gradle.properties`。建议使用 `v主版本.次版本.修订号` 格式。
 
 ```sh
 git add .
-git commit -m "Prepare release 1.5.3"
+git commit -m "Prepare release 1.5.4"
 git push origin main
-git tag -a v1.5.3 -m "Release 1.5.3"
-git push origin v1.5.3
+git tag -a v1.5.4 -m "Release 1.5.4"
+git push origin v1.5.4
 ```
 
 Release 包含可安装的 MOD JAR、源码 JAR、MOD 安装 ZIP 和 `SHA256SUMS.txt`；完整工程源码也可通过 GitHub 自动生成的 Source code 下载。`-sources.jar` 不能作为 MOD 安装。Actions 产物保留 30 天，Release 附件长期保留，测试报告单独上传。
