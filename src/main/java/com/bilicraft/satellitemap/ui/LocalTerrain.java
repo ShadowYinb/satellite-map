@@ -3,6 +3,9 @@ package com.bilicraft.satellitemap.ui;
 import com.bilicraft.satellitemap.SatelliteMapClient;
 import com.bilicraft.satellitemap.map.DynmapModel;
 import com.bilicraft.satellitemap.map.TerrainPalette;
+import com.bilicraft.satellitemap.map.WaterPalette;
+import net.minecraft.tags.FluidTags;
+import net.minecraft.client.renderer.BiomeColors;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -29,6 +32,7 @@ public final class LocalTerrain implements AutoCloseable {
     private final Map<ChunkPos,Entry> entries=new HashMap<>();
     private final BlockSurfaceColors surfaces=new BlockSurfaceColors();
     private final TerrainPalette palette=new TerrainPalette();
+    private final WaterPalette waterPalette=new WaterPalette();
     private String mapIdentity="";
     private Object resourceModel;
     private ClientLevel level;
@@ -39,9 +43,9 @@ public final class LocalTerrain implements AutoCloseable {
         if(level!=mc.level){close();level=mc.level;}
         if(level==null || mc.player==null || !mod.config.minimapEnabled || mod.layer==null || mod.model==null || mod.selection==null)return;
         String identity=mod.model.base()+"|"+mod.selection.world()+"|"+mod.layer.prefix();
-        if(!mapIdentity.equals(identity)) {mapIdentity=identity;palette.clear();for(var e:entries.values())e.scanned=0;}
+        if(!mapIdentity.equals(identity)) {mapIdentity=identity;palette.clear();waterPalette.clear();for(var e:entries.values())e.scanned=0;}
         var model=mc.getBlockRenderer().getBlockModel(net.minecraft.world.level.block.Blocks.GRASS_BLOCK.defaultBlockState());
-        if(resourceModel!=model){resourceModel=model;surfaces.clear();palette.clear();for(var e:entries.values())e.scanned=0;}
+        if(resourceModel!=model){resourceModel=model;surfaces.clear();palette.clear();waterPalette.clear();for(var e:entries.values())e.scanned=0;}
         ticks++;
         int cx=mc.player.chunkPosition().x,cz=mc.player.chunkPosition().z;
         int slice=level.dimensionType().hasCeiling()?mc.player.blockPosition().getY():Integer.MAX_VALUE;
@@ -78,18 +82,30 @@ public final class LocalTerrain implements AutoCloseable {
                 if(mapColor==MapColor.NONE)continue;
                 color=surfaces.color(mc,level,pos,state,mapColor.calculateARGBColor(MapColor.Brightness.HIGH));
                 materials[index]=state;
+                if(state.getBlock() instanceof net.minecraft.world.level.block.LiquidBlock && state.getFluidState().is(FluidTags.WATER)) {
+                    int biome=BiomeColors.getAverageWaterColor(level,pos),depth=0,bottom=color;
+                    var floor=new BlockPos.MutableBlockPos().set(pos);
+                    for(int d=0;d<32 && floor.getY()>=level.getMinY();d++,floor.move(net.minecraft.core.Direction.DOWN)) {
+                        var below=chunk.getBlockState(floor);
+                        if(!below.getFluidState().is(FluidTags.WATER)) {
+                            bottom=surfaces.color(mc,level,floor,below,below.getMapColor(level,floor).calculateARGBColor(MapColor.Brightness.HIGH));break;
+                        }
+                        depth++;
+                    }
+                    materials[index]=WaterPalette.key(biome,depth);color=WaterPalette.base(color,bottom,depth);
+                }
                 // The website's fine tiles carry its material/lighting palette. Reject different hues
                 // (new buildings, old terrain) so real client changes keep their actual block colors.
                 if((x&3)==0 && (z&3)==0 && Math.abs(mod.layer.matrix()[1])+Math.abs(mod.layer.matrix()[4])<1e-6) {
                     var point=mod.layer.project(pos.getX()+.5,y,pos.getZ()+.5);
                     int sample=mod.tiles.sampleBase(mod.model,mod.selection.world(),mod.layer,point.x(),point.y());
-                    palette.observe(state,color,sample);
+                    if(materials[index] instanceof WaterPalette.Key key)waterPalette.observe(key,color,sample);else palette.observe(state,color,sample);
                 }
                 break;
             }
             colors[index]=color;
         }
-        for(int i=0;i<256;i++)colors[i]=palette.apply(materials[i],colors[i]);
+        for(int i=0;i<256;i++)colors[i]=materials[i] instanceof WaterPalette.Key key?waterPalette.apply(key,colors[i]):palette.apply(materials[i],colors[i]);
         Entry entry=entries.get(chunkPos);
         if(entry==null) {
             var pixels=new NativeImage(16,16,true);
@@ -121,6 +137,6 @@ public final class LocalTerrain implements AutoCloseable {
     @Override public void close() {
         var manager=Minecraft.getInstance().getTextureManager();
         for(var entry:entries.values())manager.release(entry.id);
-        entries.clear();surfaces.clear();palette.clear();mapIdentity="";resourceModel=null;level=null;lastSlice=Integer.MIN_VALUE;
+        entries.clear();surfaces.clear();palette.clear();waterPalette.clear();mapIdentity="";resourceModel=null;level=null;lastSlice=Integer.MIN_VALUE;
     }
 }

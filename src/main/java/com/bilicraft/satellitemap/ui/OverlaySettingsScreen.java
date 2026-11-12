@@ -49,7 +49,8 @@ public final class OverlaySettingsScreen extends Screen {
             button("敌对: "+state(c.hostile),left,114,96,()->{c.hostile=!c.hostile;rebuildWidgets();});
             button("中立: "+state(c.neutral),left+102,114,96,()->{c.neutral=!c.neutral;rebuildWidgets();});
             button("友好: "+state(c.friendly),left+204,114,96,()->{c.friendly=!c.friendly;rebuildWidgets();});
-            slider("雷达范围",left,142,16,256,c.radarRadius,v->c.radarRadius=v);slider("垂直范围",left+155,142,8,128,c.radarHeight,v->c.radarHeight=v);
+            slider("雷达范围",left,142,16,256,c.radarRadius,v->c.radarRadius=v);slider(!full && c.radarHeightFade?"高度衰减距离":"垂直范围",left+155,142,8,128,c.radarHeight,v->c.radarHeight=v);
+            if(!full)button("高度透明: "+state(c.radarHeightFade),left,170,300,()->{c.radarHeightFade=!c.radarHeightFade;rebuildWidgets();});
         }
         button("完成",left+204,height-27,96,this::onClose);
     }

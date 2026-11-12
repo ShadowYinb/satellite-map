@@ -16,7 +16,7 @@ public final class MobRadar {
         if(mc.level==null || mc.player==null){visible=List.of();return;}
         if(tick++%5!=0)return;
         List<Mob> next=new ArrayList<>();
-        for(Entity e:mc.level.entitiesForRendering())if(e instanceof Mob mob && e.isAlive() && !e.isInvisible() && e.distanceToSqr(mc.player)<=256*256)next.add(mob);
+        for(Entity e:mc.level.entitiesForRendering())if(e instanceof Mob mob && e.isAlive() && !e.isInvisible() && Math.hypot(e.getX()-mc.player.getX(),e.getZ()-mc.player.getZ())<=256)next.add(mob);
         next.sort(Comparator.comparingDouble(e->e.distanceToSqr(mc.player)));visible=List.copyOf(next.subList(0,Math.min(256,next.size())));
     }
     public List<Mob> visible(){return visible;}

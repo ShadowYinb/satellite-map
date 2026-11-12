@@ -7,6 +7,7 @@ import java.util.*;
 public final class OverlaySettings {
     public boolean self=true,players=true,playerNames=true,labels=true;
     public boolean tabDetails=true,mobs=true,hostile=true,neutral=true,friendly=true;
+    public boolean radarHeightFade=true;
     public int playerSize=6,markerSize=6,mobSize=6,selfSize=6,textSize=6,radarRadius=96,radarHeight=32;
     public Map<String,Boolean> layers=new HashMap<>();
     public static OverlaySettings minimapDefaults() {return new OverlaySettings();}

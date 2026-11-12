@@ -91,11 +91,8 @@ public final class MapRenderer {
                 DynmapModel.Point facing=layer.project(position.x-Math.sin(yaw)*8,position.y,position.z+Math.cos(yaw)*8);
                 double fx=facing.x()-player.x(), fy=facing.y()-player.y(), len=Math.hypot(fx,fy);
                 if (len>0) {
-                    g.pose().pushMatrix();g.pose().scale(.5f,.5f);
-                    for(int i=(half+1)*2;i<=(half+5)*2;i++) {
-                        int ax=px*2+(int)Math.round(fx/len*i),ay=py*2+(int)Math.round(fy/len*i);
-                        g.fill(ax,ay,ax+1,ay+1,0xEFFFFFFF);
-                    }
+                    g.pose().pushMatrix();g.pose().translate(px,py);g.pose().rotate((float)Math.atan2(fy,fx));g.pose().scale(.5f,.5f);
+                    g.fill((half+1)*2,0,(half+5)*2,1,0xEFFFFFFF);
                     g.pose().popMatrix();
                 }
             }
@@ -112,6 +109,9 @@ public final class MapRenderer {
         g.renderOutline(left-1,top-1,size*2+2,size*2+2,color);g.pose().popMatrix();
     }
     public static float partialTick(){return Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);}
+    public static void blitUv(GuiGraphics g,Identifier texture,int x,int y,int size,float u0,float u1,float v0,float v1,int tint) {
+        g.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED,texture,x,y,u0*1024,v0*1024,size,size,Math.round((u1-u0)*1024),Math.round((v1-v0)*1024),1024,1024,tint);
+    }
     public static void blitTile(GuiGraphics g,Identifier texture,int col,int row,double size,int x,int y,double left,double top) {
         var rect=MapViewport.tile(col,row,size,x,y,left,top);
         g.pose().pushMatrix();g.pose().translate((float)rect.x(),(float)rect.y());g.pose().scale((float)(size/128),(float)(size/128));

@@ -19,12 +19,14 @@ public final class OverlayRenderer {
     private final List<LabelBox> labels=new ArrayList<>();
     private String tooltip="";
     private int fillBudget=8192;
-    private final boolean detailed;
+    private final boolean detailed,full;
+    private final int zoom;
     private OverlayRenderer(GuiGraphics g,SatelliteMapClient mod,OverlaySettings settings,int x,int y,int width,int height,
                             double left,double top,double scale,int zoom,int mx,int my,boolean full) {
         this.g=g;this.mod=mod;this.settings=settings;this.x=x;this.y=y;this.width=width;this.height=height;
         this.left=left;this.top=top;this.scale=scale;this.mx=mx;this.my=my;webZoom=mod.layer.maxZoomOut()-zoom;
         detailed=full || !settings.tabDetails || Minecraft.getInstance().options.keyPlayerList.isDown();
+        this.full=full;this.zoom=zoom;
     }
     public static void draw(GuiGraphics g,SatelliteMapClient mod,OverlaySettings settings,int x,int y,int width,int height,
                             double left,double top,double scale,int zoom,int mx,int my,boolean full) {
@@ -65,10 +67,12 @@ public final class OverlayRenderer {
         for(var set:enabled)for(var marker:set.markers()) {
             if(markerCount>=256 || !OverlayModel.zoomVisible(webZoom,marker.minZoom(),marker.maxZoom()))continue;
             var p=project(marker.point().x(),marker.point().y(),marker.point().z());if(!inside(p.x(),p.y(),16))continue;markerCount++;
-            int px=(int)Math.round(p.x()),py=(int)Math.round(p.y()),half=settings.markerSize/2;
+            double px=p.x(),py=p.y();int half=settings.markerSize/2;
             var icon=mod.icons.get(OverlayModel.iconUri(mod.model.markerRoot(),marker.icon()),300);
-            if(icon==null) {int dot=Math.max(1,half-1);g.fill(px-dot,py-dot,px+dot,py+dot,0xFFFFCF69);}
-            else g.blit(icon,px-half,py-half,px+half,py+half,0,1,0,1);
+            g.pose().pushMatrix();g.pose().translate((float)px,(float)py);
+            if(icon==null) {int dot=Math.max(1,half-1);g.fill(-dot,-dot,dot,dot,0xFFFFCF69);}
+            else g.blit(icon,-half,-half,-half+settings.markerSize,-half+settings.markerSize,0,1,0,1);
+            g.pose().popMatrix();
             if(detailed && settings.labels && set.labels())label(marker.label(),px+half+3,py-4,0xFFFFE5B2);
             if(Math.abs(mx-px)<=half+3 && Math.abs(my-py)<=half+3)tooltip=set.label()+" · "+marker.detail()+String.format(Locale.ROOT,"\nX %.0f  Y %.0f  Z %.0f",marker.point().x(),marker.point().y(),marker.point().z());
         }
@@ -95,29 +99,34 @@ public final class OverlayRenderer {
         int shown=0;
         for(var player:visiblePlayers(remote,nearby,world,self)) {
             var p=project(player.x(),player.y(),player.z());if(!inside(p.x(),p.y(),8) || shown++>=256)continue;
-            int px=(int)Math.round(p.x()),py=(int)Math.round(p.y());
+            double px=p.x(),py=p.y();
             int half=settings.playerSize/2;
-            MapRenderer.iconOutline(g,px,py,settings.playerSize,0xB063BCFF);
-            Portraits.player(g,mod,player.account(),px,py,settings.playerSize);
+            g.pose().pushMatrix();g.pose().translate((float)px,(float)py);
+            MapRenderer.iconOutline(g,0,0,settings.playerSize,0xB063BCFF);
+            Portraits.player(g,mod,player.account(),0,0,settings.playerSize);g.pose().popMatrix();
             if(detailed && settings.playerNames)label(player.label().isBlank()?player.account():player.label(),px+half+3,py-4,0xFFBBDDFF);
             if(Math.abs(mx-px)<half+2 && Math.abs(my-py)<half+2)tooltip=player.account()+String.format(Locale.ROOT,"\nX %.0f  Y %.0f  Z %.0f",player.x(),player.y(),player.z());
         }
     }
     private void drawMobs() {
         var mc=Minecraft.getInstance();if(mc.player==null)return;
-        boolean heads=mc.options.keyPlayerList.isDown();int count=0;
+        boolean heads=mc.options.keyPlayerList.isDown(),fade=!full && settings.radarHeightFade;int count=0;
+        var self=mc.player.getPosition(MapRenderer.partialTick());
         for(var mob:mod.radar.visible()) {
-            if(!mob.isAlive() || Math.abs(mob.getY()-mc.player.getY())>settings.radarHeight || mob.distanceToSqr(mc.player)>settings.radarRadius*settings.radarRadius)continue;
+            var at=mob.getPosition(MapRenderer.partialTick());double dy=Math.abs(at.y-self.y);
+            if(!mob.isAlive() || (!fade && dy>settings.radarHeight) || Math.hypot(at.x-self.x,at.z-self.z)>settings.radarRadius)continue;
             var kind=MobRadar.classify(mob);
             if((kind==MobRadar.Kind.HOSTILE && !settings.hostile)||(kind==MobRadar.Kind.NEUTRAL && !settings.neutral)||(kind==MobRadar.Kind.FRIENDLY && !settings.friendly))continue;
-            var at=mob.getPosition(MapRenderer.partialTick());var point=project(at.x,at.y,at.z);if(!inside(point.x(),point.y(),5) || count++>=128)continue;
-            int px=(int)Math.round(point.x()),py=(int)Math.round(point.y());
+            var point=project(at.x,at.y,at.z);if(!inside(point.x(),point.y(),5) || count++>=128)continue;
+            double px=point.x(),py=point.y(),opacity=fade?RadarAppearance.opacity(dy,zoom,settings.radarHeight):1;
+            g.pose().pushMatrix();g.pose().translate((float)px,(float)py);
             if(heads) {
-                int half=settings.mobSize/2;MapRenderer.iconOutline(g,px,py,settings.mobSize,kind.color);
-                if(!Portraits.mob(g,mob,px,py,settings.mobSize)) {g.fill(px-half,py-half,px+half,py+half,0xDD17202B);g.fill(px-1,py-1,px+2,py+2,kind.color);}
+                MapRenderer.iconOutline(g,0,0,settings.mobSize,RadarAppearance.fade(kind.color,opacity));
+                Portraits.mob(g,mob,0,0,settings.mobSize,opacity);
             } else {
-                int dot=Math.max(1,settings.mobSize/5);g.fill(px-dot-1,py-dot-1,px+dot+2,py+dot+2,0xB0000000);g.fill(px-dot,py-dot,px+dot+1,py+dot+1,kind.color);
+                int dot=Math.max(1,settings.mobSize/5);g.fill(-dot-1,-dot-1,dot+2,dot+2,RadarAppearance.fade(0xB0000000,opacity));g.fill(-dot,-dot,dot+1,dot+1,RadarAppearance.fade(kind.color,opacity));
             }
+            g.pose().popMatrix();
             if(Math.abs(mx-px)<6 && Math.abs(my-py)<6)tooltip=mob.getName().getString()+String.format(Locale.ROOT,"\nX %.0f Y %.0f Z %.0f",mob.getX(),mob.getY(),mob.getZ());
         }
     }

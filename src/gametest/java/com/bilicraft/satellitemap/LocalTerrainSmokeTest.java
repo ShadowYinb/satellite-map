@@ -31,6 +31,7 @@ final class LocalTerrainSmokeTest {
         if(((website>>8)&255)<((website>>16)&255)*1.25 || ((website>>8)&255)<(website&255))throw new AssertionError("Fullscreen no longer uses website imagery: "+Integer.toHexString(website));
         c.getInput().pressKey(SatelliteMapClient.INSTANCE.openMap);c.waitForScreen(null);
         checkPalette(c,paletteTiles);
+        WaterAppearanceSmokeTest.run(c,server,paletteTiles);
         MovementSmokeTest.run(c,server);
         c.runOnClient(mc->{var config=SatelliteMapClient.INSTANCE.config;config.minimapOverlays.layers.clear();config.minimapOverlays.layers.putAll(saved);config.fullmapOverlays.layers.clear();config.fullmapOverlays.layers.putAll(savedFull);});
         SatelliteMapClient.LOGGER.info("Local terrain: loaded chunks override website, red-to-blue block update, fullscreen website imagery passed");
@@ -38,7 +39,7 @@ final class LocalTerrainSmokeTest {
     private static int pixel(ClientGameTestContext c,String name,boolean full) throws Exception {
         return pixel(c,name,full,25,30);
     }
-    private static int pixel(ClientGameTestContext c,String name,boolean full,int wx,int wz) throws Exception {
+    static int pixel(ClientGameTestContext c,String name,boolean full,int wx,int wz) throws Exception {
         int[] sample=c.computeOnClient(mc->{var mod=SatelliteMapClient.INSTANCE;var a=mod.layer.project(wx,mc.player.getY(),wz);var p=mod.layer.project(mc.player.getX(),mc.player.getY(),mc.player.getZ());
             double x,y;if(full){x=mc.screen.width/2.0;y=mc.screen.height/2.0;}else{var b=MinimapLayout.bounds(mod.config,mc.getWindow().getGuiScaledWidth(),mc.getWindow().getGuiScaledHeight());x=b.x()+b.width()/2.0;y=b.y()+b.height()/2.0;}
             double scale=mc.getWindow().getGuiScale(),mapScale=mod.layer.scale(mod.config.zoom);

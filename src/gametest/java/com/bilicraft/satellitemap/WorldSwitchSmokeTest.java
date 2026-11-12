@@ -39,7 +39,7 @@ final class WorldSwitchSmokeTest {
                 }}
                 """;
         web.createContext("/",exchange->{
-            String path=exchange.getRequestURI().getPath();boolean palette=path.startsWith("/matched/");if(palette)path=path.substring(8);byte[] data;int status=200;
+            String path=exchange.getRequestURI().getPath();boolean palette=path.startsWith("/matched/") || path.startsWith("/water/");if(path.startsWith("/matched/"))path=path.substring(8);else if(path.startsWith("/water/"))path=path.substring(6);byte[] data;int status=200;
             if(path.equals("/standalone/dynmap_config.json"))data=("{\"worlds\":["+worlds+"]}").getBytes(StandardCharsets.UTF_8);
             else if(path.startsWith("/standalone/dynmap_"))data=("{\"players\":[{\"account\":\""+account+"\",\"world\":\""+webWorld.get()+"\",\"x\":10,\"y\":100,\"z\":20},"
                     +"{\"account\":\"FixtureFriend\",\"name\":\"FixtureFriend\",\"world\":\""+webWorld.get()+"\",\"x\":35,\"y\":100,\"z\":10}]}").getBytes(StandardCharsets.UTF_8);
@@ -86,15 +86,20 @@ final class WorldSwitchSmokeTest {
                         .stream().anyMatch(tile->tile.texture().equals(texture)))throw new AssertionError("Icon texture overwrote map texture");
                 return true;},1200);
             context.takeScreenshot("satellite-players-and-regions");
+            IconMotionSmokeTest.run(context);
+            RadarHeightSmokeTest.run(context,gameServer);
             gameServer.runCommand("difficulty normal");
             gameServer.runCommand("execute in minecraft:the_end run summon zombie 0 100 15 {NoAI:1b,NoGravity:1b,Silent:1b,PersistenceRequired:1b}");
             gameServer.runCommand("execute in minecraft:the_end run summon cow 24 100 35 {NoAI:1b,NoGravity:1b,Silent:1b,PersistenceRequired:1b}");
             gameServer.runCommand("execute in minecraft:the_end run summon wolf -15 100 45 {NoAI:1b,NoGravity:1b,Silent:1b,PersistenceRequired:1b}");
             gameServer.runCommand("execute in minecraft:the_end run summon rabbit 30 100 5 {NoAI:1b,NoGravity:1b,Silent:1b,PersistenceRequired:1b}");
-            context.waitFor(mc->SatelliteMapClient.INSTANCE.radar.visible().size()>=4,1200);
+            gameServer.runCommand("execute in minecraft:the_end run summon bat 10 100 -10 {NoAI:1b,NoGravity:1b,Silent:1b,PersistenceRequired:1b}");
+            gameServer.runCommand("execute in minecraft:the_end run summon horse 45 100 20 {NoAI:1b,NoGravity:1b,Silent:1b,PersistenceRequired:1b}");
+            gameServer.runCommand("execute in minecraft:the_end run summon parrot -25 100 20 {NoAI:1b,NoGravity:1b,Silent:1b,PersistenceRequired:1b}");
+            context.waitFor(mc->SatelliteMapClient.INSTANCE.radar.visible().size()>=7,1200);
             context.takeScreenshot("satellite-radar-dots");
             context.getInput().holdKey(options->options.keyPlayerList);context.waitTicks(5);
-            context.takeScreenshot("satellite-tab-heads");
+            MobHeadSmokeTest.check(context,context.takeScreenshot("satellite-tab-heads"));
             context.getInput().releaseKey(options->options.keyPlayerList);context.waitTicks(2);
             context.takeScreenshot("satellite-tab-released");
             context.getInput().pressKey(SatelliteMapClient.INSTANCE.openMap);context.waitForScreen(FullMapScreen.class);
