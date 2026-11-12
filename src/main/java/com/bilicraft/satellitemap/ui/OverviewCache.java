@@ -42,8 +42,7 @@ public final class OverviewCache implements AutoCloseable {
             for(int row=minRow;row<=maxRow;row++)for(int col=minCol;col<=maxCol;col++){
                 var key=new OverviewStore.Key(root,level,col,row);var texture=textures.get(key);
                 if(texture==null && now-requested.getOrDefault(key,0L)>2000 && store.request(key))requested.put(key,now);
-                if(texture!=null){visible.add(key);int dx=x+(int)Math.round(col*size-left),dy=y+(int)Math.round(row*size-top),right=x+(int)Math.round((col+1.0)*size-left),bottom=y+(int)Math.round((row+1.0)*size-top);
-                    g.blit(texture,dx,dy,right,bottom,0,1,0,1);}
+                if(texture!=null){visible.add(key);MapRenderer.blitTile(g,texture,col,row,size,x,y,left,top);}
             }
         if(requested.size()>8192)requested.clear();
     }

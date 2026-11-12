@@ -3,6 +3,7 @@ package com.bilicraft.satellitemap.ui;
 import com.bilicraft.satellitemap.SatelliteMapClient;
 import com.bilicraft.satellitemap.map.DynmapModel;
 import com.bilicraft.satellitemap.map.TilePyramid;
+import com.bilicraft.satellitemap.map.MapViewport;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.Identifier;
@@ -21,7 +22,8 @@ public final class MapRenderer {
         g.renderOutline(x-2,y-2,width+4,height+4,0xD0D6E3EC);
         g.renderOutline(x-1,y-1,width+2,height+2,0xA0151C28);
         g.fill(x-2,y-2,x+12,y,0xFFF1F6FA);g.fill(x+width-12,y-2,x+width+2,y,0xFFF1F6FA);
-        draw(g,mod,x,y,width,height,mc.player.getX(),mc.player.getY(),mc.player.getZ(),mod.config.zoom);
+        var position=mc.player.getPosition(partialTick());
+        draw(g,mod,x,y,width,height,position.x,position.y,position.z,mod.config.zoom);
         int fontSize=mod.config.minimapOverlays.textSize;
         textScaled(g,String.format(Locale.ROOT,"X %.0f  Y %.0f  Z %.0f",mc.player.getX(),mc.player.getY(),mc.player.getZ()),x,y+height+5,0xFFF0F4FA,fontSize);
         if(mc.options.keyPlayerList.isDown())textScaled(g,clip(mod.title(),(int)(width*9.0/fontSize)),x,y+height+fontSize+9,0xFFB8CDE0,fontSize);
@@ -64,10 +66,7 @@ public final class MapRenderer {
               for(var resident:residents) {
                 if(resident.tile().level()!=level)continue;
                 var tile=resident.tile();double size=tile.size(layer.tileSize())*scale;
-                int dx=x+(int)Math.round(tile.col()*size-left),dy=y+(int)Math.round(tile.row()*size-top);
-                int right=x+(int)Math.round((tile.col()+1.0)*size-left),bottom=y+(int)Math.round((tile.row()+1.0)*size-top);
-                if(right<=dx || bottom<=dy)continue;
-                g.blit(resident.texture(),dx,dy,right,bottom,0,1,0,1);loaded++;
+                blitTile(g,resident.texture(),tile.col(),tile.row(),size,x,y,left,top);loaded++;
                 mod.tiles.get(tile.uri(),mod.config.refreshSeconds,10000);
               }
               if(mod.tiles.overview!=null)mod.tiles.overview.drawLevel(g,root,layer.tileSize(),level,actualZoom,x,y,width,height,left,top,scale);
@@ -81,13 +80,15 @@ public final class MapRenderer {
             OverlayRenderer.draw(g,mod,options,x,y,width,height,left,top,scale,actualZoom,mouseX,mouseY,full);
             Minecraft mc = Minecraft.getInstance();
             if (mc.player != null && options.self) {
-                DynmapModel.Point player = layer.project(mc.player.getX(),mc.player.getY(),mc.player.getZ());
-                int px=x+(int)Math.round(player.x()*scale-left), py=y+(int)Math.round(player.y()*scale-top);
+                var position=mc.player.getPosition(partialTick());
+                DynmapModel.Point player = layer.project(position.x,position.y,position.z);
+                int px=full?x+(int)Math.round(player.x()*scale-left):x+width/2;
+                int py=full?y+(int)Math.round(player.y()*scale-top):y+height/2;
                 int half=options.selfSize/2;
                 iconOutline(g,px,py,options.selfSize,0xB0D7E5EF);
                 Portraits.player(g,mod,mc.player.getGameProfile().name(),px,py,options.selfSize);
-                double yaw=Math.toRadians(mc.player.getYRot());
-                DynmapModel.Point facing=layer.project(mc.player.getX()-Math.sin(yaw)*8,mc.player.getY(),mc.player.getZ()+Math.cos(yaw)*8);
+                double yaw=Math.toRadians(mc.player.getYRot(partialTick()));
+                DynmapModel.Point facing=layer.project(position.x-Math.sin(yaw)*8,position.y,position.z+Math.cos(yaw)*8);
                 double fx=facing.x()-player.x(), fy=facing.y()-player.y(), len=Math.hypot(fx,fy);
                 if (len>0) {
                     g.pose().pushMatrix();g.pose().scale(.5f,.5f);
@@ -109,6 +110,12 @@ public final class MapRenderer {
     public static void iconOutline(GuiGraphics g,int x,int y,int size,int color) {
         g.pose().pushMatrix();g.pose().scale(.5f,.5f);int left=(x-size/2)*2,top=(y-size/2)*2;
         g.renderOutline(left-1,top-1,size*2+2,size*2+2,color);g.pose().popMatrix();
+    }
+    public static float partialTick(){return Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);}
+    public static void blitTile(GuiGraphics g,Identifier texture,int col,int row,double size,int x,int y,double left,double top) {
+        var rect=MapViewport.tile(col,row,size,x,y,left,top);
+        g.pose().pushMatrix();g.pose().translate((float)rect.x(),(float)rect.y());g.pose().scale((float)(size/128),(float)(size/128));
+        g.blit(texture,0,0,128,128,0,1,0,1);g.pose().popMatrix();
     }
     private MapRenderer() {}
 }

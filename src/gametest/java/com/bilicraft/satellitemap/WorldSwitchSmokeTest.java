@@ -18,6 +18,7 @@ final class WorldSwitchSmokeTest {
     static void run(ClientGameTestContext context,TestServerContext gameServer) throws Exception {
         HttpServer web=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
         AtomicReference<String> webWorld=new AtomicReference<>("fixture_overworld");
+        AtomicReference<byte[]> paletteTiles=new AtomicReference<>();
         String account=context.computeOnClient(mc->mc.player.getGameProfile().name());
         String maps="[{\"name\":\"flat\",\"prefix\":\"flat\",\"image-format\":\"png\",\"worldtomap\":[4,0,0,0,0,-4,0,1,0],\"mapzoomout\":5}]";
         String worlds=java.util.stream.Stream.of("fixture_overworld","other_overworld","fixture_nether","fixture_the_end")
@@ -38,7 +39,7 @@ final class WorldSwitchSmokeTest {
                 }}
                 """;
         web.createContext("/",exchange->{
-            String path=exchange.getRequestURI().getPath();byte[] data;int status=200;
+            String path=exchange.getRequestURI().getPath();boolean palette=path.startsWith("/matched/");if(palette)path=path.substring(8);byte[] data;int status=200;
             if(path.equals("/standalone/dynmap_config.json"))data=("{\"worlds\":["+worlds+"]}").getBytes(StandardCharsets.UTF_8);
             else if(path.startsWith("/standalone/dynmap_"))data=("{\"players\":[{\"account\":\""+account+"\",\"world\":\""+webWorld.get()+"\",\"x\":10,\"y\":100,\"z\":20},"
                     +"{\"account\":\"FixtureFriend\",\"name\":\"FixtureFriend\",\"world\":\""+webWorld.get()+"\",\"x\":35,\"y\":100,\"z\":10}]}").getBytes(StandardCharsets.UTF_8);
@@ -49,7 +50,7 @@ final class WorldSwitchSmokeTest {
                 boolean coarse=path.substring(path.lastIndexOf('/')+1).startsWith("z");
                 // Nether supplies only large tiles; End supplies only base tiles.
                 if((path.contains("fixture_nether/") && !coarse)||(path.contains("fixture_the_end/") && coarse)) {status=404;data=new byte[0];}
-                else data=png;
+                else data=palette && paletteTiles.get()!=null?paletteTiles.get():png;
             }
             else {status=404;data=new byte[0];}
             exchange.sendResponseHeaders(status,data.length);try(var out=exchange.getResponseBody()){out.write(data);}exchange.close();
@@ -65,7 +66,7 @@ final class WorldSwitchSmokeTest {
             waitWorld(context,"minecraft:overworld","fixture_overworld");
             webWorld.set("other_overworld");
             waitWorld(context,"minecraft:overworld","other_overworld");
-            LocalTerrainSmokeTest.run(context,gameServer);
+            LocalTerrainSmokeTest.run(context,gameServer,paletteTiles);
             BorderSmokeTest.run(context);
             webWorld.set("fixture_nether");gameServer.runCommand("execute in minecraft:the_nether run tp @a 10 100 20");
             waitWorld(context,"minecraft:the_nether","fixture_nether");

@@ -31,7 +31,7 @@ public final class FullMapScreen extends Screen {
     @Override public void render(GuiGraphics g,int mx,int my,float delta) {
         String identity=mod.title();
         if (!identity.equals(mapIdentity)) { mapIdentity=identity; follow=true; }
-        if (follow && minecraft.player != null) { cx=minecraft.player.getX();cy=minecraft.player.getY();cz=minecraft.player.getZ(); }
+        if (follow && minecraft.player != null) {var p=minecraft.player.getPosition(MapRenderer.partialTick());cx=p.x;cy=p.y;cz=p.z;}
         MapRenderer.draw(g,mod,0,0,width,height,cx,cy,cz,zoom,true,mx,my);
         int size=mod.config.fullmapOverlays.textSize;float fontScale=size/9f;
         g.fill(5,5,Math.min(width-5,Math.max(180,(int)(font.width(mod.title())*fontScale)+16)),14+size*2,0x90101824);

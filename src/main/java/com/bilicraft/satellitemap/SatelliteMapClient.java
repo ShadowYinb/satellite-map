@@ -73,7 +73,7 @@ public final class SatelliteMapClient implements ClientModInitializer {
         tiles.tick();
         icons.tick();
         radar.tick(mc);
-        localTerrain.tick(mc,config.minimapEnabled && layer!=null);
+        localTerrain.tick(mc,this);
         while (openSettings.consumeClick()) if (mc.screen == null) mc.setScreen(new SettingsScreen(null,this));
         while (openMap.consumeClick()) if (mc.screen == null) mc.setScreen(new FullMapScreen(this));
         while (toggleMinimap.consumeClick()) { config.minimapEnabled = !config.minimapEnabled; save(); }

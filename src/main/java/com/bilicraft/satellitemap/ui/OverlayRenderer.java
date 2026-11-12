@@ -90,7 +90,7 @@ public final class OverlayRenderer {
     private void drawPlayers() {
         Minecraft mc=Minecraft.getInstance();List<DynmapService.Player> nearby=new ArrayList<>();
         String world=mod.selection.world(),self=mc.player==null?"":mc.player.getGameProfile().name();
-        if(mc.level!=null)for(var p:mc.level.players())nearby.add(new DynmapService.Player(p.getGameProfile().name(),world,p.getX(),p.getY(),p.getZ(),OverlayModel.plain(p.getDisplayName().getString())));
+        if(mc.level!=null)for(var p:mc.level.players()){var at=p.getPosition(MapRenderer.partialTick());nearby.add(new DynmapService.Player(p.getGameProfile().name(),world,at.x,at.y,at.z,OverlayModel.plain(p.getDisplayName().getString())));}
         var remote=System.currentTimeMillis()-mod.playersObservedAt<=20000?mod.mapPlayers:List.<DynmapService.Player>of();
         int shown=0;
         for(var player:visiblePlayers(remote,nearby,world,self)) {
@@ -110,7 +110,7 @@ public final class OverlayRenderer {
             if(!mob.isAlive() || Math.abs(mob.getY()-mc.player.getY())>settings.radarHeight || mob.distanceToSqr(mc.player)>settings.radarRadius*settings.radarRadius)continue;
             var kind=MobRadar.classify(mob);
             if((kind==MobRadar.Kind.HOSTILE && !settings.hostile)||(kind==MobRadar.Kind.NEUTRAL && !settings.neutral)||(kind==MobRadar.Kind.FRIENDLY && !settings.friendly))continue;
-            var point=project(mob.getX(),mob.getY(),mob.getZ());if(!inside(point.x(),point.y(),5) || count++>=128)continue;
+            var at=mob.getPosition(MapRenderer.partialTick());var point=project(at.x,at.y,at.z);if(!inside(point.x(),point.y(),5) || count++>=128)continue;
             int px=(int)Math.round(point.x()),py=(int)Math.round(point.y());
             if(heads) {
                 int half=settings.mobSize/2;MapRenderer.iconOutline(g,px,py,settings.mobSize,kind.color);

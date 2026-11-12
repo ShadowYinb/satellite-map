@@ -8,7 +8,7 @@
 ## 安装
 
 1. 使用 Minecraft **1.21.11**，安装 **Fabric Loader 0.18.4**。
-2. 将 `satellite-map-1.5.0.jar` 和适用于 **1.21.11** 的 **Fabric API 0.141.3 或更新兼容版本**放入该游戏实例的 `mods` 文件夹。升级时移除旧版 Satellite Map JAR，保留原配置即可。
+2. 将 `satellite-map-1.5.1.jar` 和适用于 **1.21.11** 的 **Fabric API 0.141.3 或更新兼容版本**放入该游戏实例的 `mods` 文件夹。升级时移除旧版 Satellite Map JAR，保留原配置即可。
 3. 启动游戏，连接服务器。服务器端无需安装本 MOD。
 4. 可选安装 **Mod Menu 17.x**，可从模组列表进入设置；没有 Mod Menu 时可直接按 `O`。
 
@@ -40,9 +40,13 @@
 
 ## 小地图的本地实时地形
 
-1.5.0 起，小地图优先显示玩家附近已加载的游戏区块，不再用网页旧图覆盖这一带。按方块颜色、群系颜色和地形高差生成顶视图，方块变化后自动更新；周围约 100 格内的区块分批处理，距离最近的区块先显示。未收到的区块和更远的区域继续使用网页卫星图。
+1.5.0 起，小地图优先显示玩家附近已加载的游戏区块，不再用网页旧图覆盖这一带。方块变化后自动更新；周围约 100 格内的区块分批处理，距离最近的区块先显示。未收到的区块和更远的区域继续使用网页卫星图。
 本地层只读取客户端已经接收到的区块，不向服务器额外加载区块。区块卸载、离开世界或切换维度时会移除对应图像，避免把其他世界的地形带过来。大地图继续使用网页卫星图。
-主世界和末地显示地表；有天花板的维度（例如下界）从玩家高度附近向下寻找地形，避免把整个下界显示成顶部基岩。该层使用原版方块地图色和群系着色，并非网页建筑材质的复刻；斜视图层会按网站的投影方向铺设顶视地形。
+1.5.1 改用当前资源包的方块顶部材质平均色，再乘以群系染色，草、树叶和水不再直接使用过亮的染色值。移除了区块内部额外添加的明暗条纹，并从同位置的网页原始细瓦片学习各类材质的配色；跳过颜色明显不同、空白或过暗的样本，避免把新建筑重新染成网站上的旧地形。校准只读取已经加载的瓦片，不额外发起下载。
+校准稳定后固定配色，网站 / 世界 / 图层或资源包改变时重新建立，避免移动时整片地图不断变色。网页使用专用资源包、特殊光照、季节色或过期地形时，不能保证所有像素完全相同；本地仍以实际收到的方块为准。
+主世界和末地显示地表；有天花板的维度（例如下界）从玩家高度附近向下寻找地形，避免把整个下界显示成顶部基岩。斜视图层会按网站的投影方向铺设顶视地形，自动配色校准用于顶视图层。
+
+1.5.1 的小地图、跟随模式的大地图和附近实体使用按帧插值的位置。网页原始瓦片、持久合成图和实时地形共用连续坐标，不再分别取整后绘制；自身头像固定在小地图中央，朝向线也随帧更新。
 
 ## 在线玩家、标记与区域图层
 
@@ -180,7 +184,7 @@ macOS / Linux：
 sh ./gradlew build
 ```
 
-生成的可安装 JAR 位于 `build/libs/satellite-map-1.5.0.jar`。`-sources.jar` 是源码包，不能作为 MOD 安装。
+生成的可安装 JAR 位于 `build/libs/satellite-map-1.5.1.jar`。`-sources.jar` 是源码包，不能作为 MOD 安装。
 
 ```powershell
 .\gradlew.bat test       # 投影、维度 / 多世界、缓存更新 / 断网 / 损坏、拖动布局等离线测试
@@ -217,14 +221,14 @@ $env:JAVA_TOOL_OPTIONS='-Djdk.net.unixdomain.tmpdir=C:\Temp -Djava.io.tmpdir=C:\
 
 ## GitHub 自动构建与发布
 
-推送任何 tag 都会运行 [Tag build and release](.github/workflows/release.yml)：使用 Java 21 和工程固定的 Gradle Wrapper，执行 `clean build`（包含离线测试），构建成功后上传 Actions 产物，并自动创建对应的 GitHub Release。版本号从 tag 取得，例如 `v1.5.1` 会构建版本 `1.5.1`，不必为了构建覆盖本地的 `gradle.properties`。建议使用 `v主版本.次版本.修订号` 格式。
+推送任何 tag 都会运行 [Tag build and release](.github/workflows/release.yml)：使用 Java 21 和工程固定的 Gradle Wrapper，执行 `clean build`（包含离线测试），构建成功后上传 Actions 产物，并自动创建对应的 GitHub Release。版本号从 tag 取得，例如 `v1.5.2` 会构建版本 `1.5.2`，不必为了构建覆盖本地的 `gradle.properties`。建议使用 `v主版本.次版本.修订号` 格式。
 
 ```sh
 git add .
-git commit -m "Prepare release 1.5.1"
+git commit -m "Prepare release 1.5.2"
 git push origin main
-git tag -a v1.5.1 -m "Release 1.5.1"
-git push origin v1.5.1
+git tag -a v1.5.2 -m "Release 1.5.2"
+git push origin v1.5.2
 ```
 
 Release 包含可安装的 MOD JAR、源码 JAR、MOD 安装 ZIP 和 `SHA256SUMS.txt`；完整工程源码也可通过 GitHub 自动生成的 Source code 下载。`-sources.jar` 不能作为 MOD 安装。Actions 产物保留 30 天，Release 附件长期保留，测试报告单独上传。

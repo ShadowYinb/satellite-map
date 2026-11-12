@@ -105,6 +105,27 @@ public final class TileCache implements AutoCloseable {
         return entry.texture;
     }
     public record Resident(TilePyramid.Tile tile,Identifier texture) {}
+    /** Only base imagery is reliable enough to calibrate a single surface block. No network I/O. */
+    public int sampleBase(DynmapModel model,String world,DynmapModel.Layer layer,double u,double v) {
+        int col=(int)Math.floor(u/layer.tileSize()),row=(int)Math.floor(v/layer.tileSize());
+        var entry=entries.get(model.tiles().resolve(layer.tilePath(world,0,col,row)));
+        if(entry==null || entry.texture==null)return 0;
+        var texture=Minecraft.getInstance().getTextureManager().getTexture(entry.texture);
+        if(!(texture instanceof DynamicTexture dynamic) || dynamic.getPixels()==null)return 0;
+        var image=dynamic.getPixels();
+        double fx=(u-col*(double)layer.tileSize())/layer.tileSize(),fy=(v-row*(double)layer.tileSize())/layer.tileSize();
+        double[] m=layer.matrix();
+        double rx=Math.min(8,(Math.abs(m[0])+Math.abs(m[2]))*.5*image.getWidth()/layer.tileSize());
+        double ry=Math.min(8,(Math.abs(m[3])+Math.abs(m[5]))*.5*image.getHeight()/layer.tileSize());
+        int x0=Math.clamp((int)Math.floor(fx*image.getWidth()-rx),0,image.getWidth()-1),y0=Math.clamp((int)Math.floor(fy*image.getHeight()-ry),0,image.getHeight()-1);
+        int x1=Math.clamp((int)Math.ceil(fx*image.getWidth()+rx),x0+1,image.getWidth()),y1=Math.clamp((int)Math.ceil(fy*image.getHeight()+ry),y0+1,image.getHeight());
+        int r=0,g=0,b=0,count=0;
+        for(int y=y0;y<y1;y++)for(int x=x0;x<x1;x++){
+            int color=image.getPixel(x,y);if((color>>>24)!=255)continue;
+            r+=(color>>16)&255;g+=(color>>8)&255;b+=color&255;count++;
+        }
+        return count==0?0:0xFF000000|(r/count)<<16|(g/count)<<8|b/count;
+    }
     public List<Resident> resident(URI root,int tileSize,double left,double top,double right,double bottom) {
         List<Resident> result=new ArrayList<>();
         for(var entry:entries.entrySet())if(entry.getValue().texture!=null) {

@@ -1,6 +1,8 @@
 package com.bilicraft.satellitemap.ui;
 
+import com.bilicraft.satellitemap.SatelliteMapClient;
 import com.bilicraft.satellitemap.map.DynmapModel;
+import com.bilicraft.satellitemap.map.TerrainPalette;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -25,13 +27,21 @@ public final class LocalTerrain implements AutoCloseable {
         Entry(LevelChunk chunk,Identifier id,DynamicTexture texture){this.chunk=chunk;this.id=id;this.texture=texture;}
     }
     private final Map<ChunkPos,Entry> entries=new HashMap<>();
+    private final BlockSurfaceColors surfaces=new BlockSurfaceColors();
+    private final TerrainPalette palette=new TerrainPalette();
+    private String mapIdentity="";
+    private Object resourceModel;
     private ClientLevel level;
     private long ticks;
     private int serial,lastSlice=Integer.MIN_VALUE;
 
-    public void tick(Minecraft mc,boolean enabled) {
+    public void tick(Minecraft mc,SatelliteMapClient mod) {
         if(level!=mc.level){close();level=mc.level;}
-        if(level==null || mc.player==null || !enabled)return;
+        if(level==null || mc.player==null || !mod.config.minimapEnabled || mod.layer==null || mod.model==null || mod.selection==null)return;
+        String identity=mod.model.base()+"|"+mod.selection.world()+"|"+mod.layer.prefix();
+        if(!mapIdentity.equals(identity)) {mapIdentity=identity;palette.clear();for(var e:entries.values())e.scanned=0;}
+        var model=mc.getBlockRenderer().getBlockModel(net.minecraft.world.level.block.Blocks.GRASS_BLOCK.defaultBlockState());
+        if(resourceModel!=model){resourceModel=model;surfaces.clear();palette.clear();for(var e:entries.values())e.scanned=0;}
         ticks++;
         int cx=mc.player.chunkPosition().x,cz=mc.player.chunkPosition().z;
         int slice=level.dimensionType().hasCeiling()?mc.player.blockPosition().getY():Integer.MAX_VALUE;
@@ -52,12 +62,12 @@ public final class LocalTerrain implements AutoCloseable {
         pending.sort(Comparator.<ChunkPos>comparingInt(p->entries.containsKey(p)?1:0)
                 .thenComparingLong(p->entries.containsKey(p)?entries.get(p).scanned:0)
                 .thenComparingInt(p->(p.x-cx)*(p.x-cx)+(p.z-cz)*(p.z-cz)));
-        for(var pos:pending.stream().limit(SCANS_PER_TICK).toList())scan(mc,pos,slice);
+        for(var pos:pending.stream().limit(SCANS_PER_TICK).toList())scan(mc,mod,pos,slice);
     }
     private LevelChunk loaded(ChunkPos pos){return level.getChunkSource().getChunk(pos.x,pos.z,ChunkStatus.FULL,false);}
-    private void scan(Minecraft mc,ChunkPos chunkPos,int slice) {
+    private void scan(Minecraft mc,SatelliteMapClient mod,ChunkPos chunkPos,int slice) {
         var chunk=loaded(chunkPos);if(chunk==null)return;
-        int[] colors=new int[256],heights=new int[256];var pos=new BlockPos.MutableBlockPos();
+        int[] colors=new int[256];Object[] materials=new Object[256];var pos=new BlockPos.MutableBlockPos();
         for(int z=0;z<16;z++)for(int x=0;x<16;x++) {
             int index=z*16+x,y=chunk.getHeight(Heightmap.Types.WORLD_SURFACE,x,z);
             if(slice!=Integer.MAX_VALUE)y=Math.min(y,slice+1);
@@ -66,18 +76,20 @@ public final class LocalTerrain implements AutoCloseable {
                 pos.set(chunkPos.getMinBlockX()+x,y,chunkPos.getMinBlockZ()+z);
                 var state=chunk.getBlockState(pos);var mapColor=state.getMapColor(level,pos);
                 if(mapColor==MapColor.NONE)continue;
-                color=mapColor.calculateARGBColor(MapColor.Brightness.HIGH);
-                int tint=mc.getBlockColors().getColor(state,level,pos,0);
-                if(tint!=-1)color=0xFF000000|(tint&0xFFFFFF);
+                color=surfaces.color(mc,level,pos,state,mapColor.calculateARGBColor(MapColor.Brightness.HIGH));
+                materials[index]=state;
+                // The website's fine tiles carry its material/lighting palette. Reject different hues
+                // (new buildings, old terrain) so real client changes keep their actual block colors.
+                if((x&3)==0 && (z&3)==0 && Math.abs(mod.layer.matrix()[1])+Math.abs(mod.layer.matrix()[4])<1e-6) {
+                    var point=mod.layer.project(pos.getX()+.5,y,pos.getZ()+.5);
+                    int sample=mod.tiles.sampleBase(mod.model,mod.selection.world(),mod.layer,point.x(),point.y());
+                    palette.observe(state,color,sample);
+                }
                 break;
             }
-            heights[index]=y;
-            // Small relief shading retains individual blocks and makes height changes legible.
-            int slope=z==0?0:Integer.compare(y,heights[index-16]);
-            double shade=slope>0?1.07:slope<0?.84:1;
-            colors[index]=0xFF000000|Math.min(255,(int)(((color>>16)&255)*shade))<<16|
-                    Math.min(255,(int)(((color>>8)&255)*shade))<<8|Math.min(255,(int)((color&255)*shade));
+            colors[index]=color;
         }
+        for(int i=0;i<256;i++)colors[i]=palette.apply(materials[i],colors[i]);
         Entry entry=entries.get(chunkPos);
         if(entry==null) {
             var pixels=new NativeImage(16,16,true);
@@ -109,6 +121,6 @@ public final class LocalTerrain implements AutoCloseable {
     @Override public void close() {
         var manager=Minecraft.getInstance().getTextureManager();
         for(var entry:entries.values())manager.release(entry.id);
-        entries.clear();level=null;lastSlice=Integer.MIN_VALUE;
+        entries.clear();surfaces.clear();palette.clear();mapIdentity="";resourceModel=null;level=null;lastSlice=Integer.MIN_VALUE;
     }
 }
